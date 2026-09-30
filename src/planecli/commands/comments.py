@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 import cyclopts
 from cyclopts import Parameter
@@ -10,7 +10,7 @@ from plane.errors import PlaneError
 
 from planecli.api.async_sdk import run_sdk
 from planecli.api.client import get_client, get_workspace, handle_api_error
-from planecli.exceptions import PlaneCLIError
+from planecli.exceptions import PlaneCLIError, ValidationError
 from planecli.formatters import output, output_single
 from planecli.utils.resolve import (
     resolve_work_item_across_projects_async,
@@ -132,11 +132,39 @@ async def list_(
     output(data, COMMENT_COLUMNS, title=f"Comments on {issue}", as_json=json)
 
 
+def _prepare_comment_html(
+    body: str | None, body_file: str | None, format: Literal["plain", "markdown"]
+) -> str:
+    """Read one comment input and render it for Plane's HTML API."""
+    if (body is None) == (body_file is None):
+        raise ValidationError("Provide exactly one of --body or --body-file.")
+
+    if body_file is not None:
+        import sys
+        from pathlib import Path
+
+        try:
+            body = sys.stdin.read() if body_file == "-" else Path(body_file).read_text(
+                encoding="utf-8"
+            )
+        except (OSError, UnicodeError) as e:
+            raise ValidationError(f"Cannot read comment from {body_file!r}: {e}") from e
+
+    assert body is not None
+    if format == "markdown":
+        from markdown_it import MarkdownIt
+
+        return MarkdownIt("commonmark", {"html": False}).enable("table").render(body)
+    return f"<p>{body}</p>"
+
+
 @comment_app.command(alias="new")
 async def create(
     issue: str,
     *,
-    body: Annotated[str, Parameter(alias="-b")],
+    body: Annotated[str | None, Parameter(alias="-b", allow_leading_hyphen=True)] = None,
+    body_file: Annotated[str | None, Parameter(allow_leading_hyphen=True)] = None,
+    format: Literal["plain", "markdown"] = "plain",
     project: Annotated[str | None, Parameter(alias="-p")] = None,
     json: bool = False,
 ) -> None:
@@ -147,11 +175,17 @@ async def create(
     issue
         Work item identifier (ABC-123) or UUID.
     body
-        Comment text (plain text, converted to HTML).
+        Comment text. Mutually exclusive with --body-file.
+    body_file
+        Read comment text from a UTF-8 file, or - for stdin.
+    format
+        Input format: plain (legacy paragraph wrapping) or markdown (rendered HTML).
     project
         Project name/ID (required for name-based lookup).
     """
     from plane.models.work_items import CreateWorkItemComment
+
+    comment_html = _prepare_comment_html(body, body_file, format)
 
     try:
         client = get_client()
@@ -169,7 +203,7 @@ async def create(
 
         item_id = item["id"]
 
-        comment_data = CreateWorkItemComment(comment_html=f"<p>{body}</p>")
+        comment_data = CreateWorkItemComment(comment_html=comment_html)
         comment = await run_sdk(
             client.work_items.comments.create,
             workspace, project_id, item_id, comment_data,
@@ -192,7 +226,9 @@ async def update(
     comment_id: str,
     *,
     issue: str,
-    body: Annotated[str, Parameter(alias="-b")],
+    body: Annotated[str | None, Parameter(alias="-b", allow_leading_hyphen=True)] = None,
+    body_file: Annotated[str | None, Parameter(allow_leading_hyphen=True)] = None,
+    format: Literal["plain", "markdown"] = "plain",
     project: Annotated[str | None, Parameter(alias="-p")] = None,
     json: bool = False,
 ) -> None:
@@ -205,11 +241,17 @@ async def update(
     issue
         Work item identifier (ABC-123) or UUID.
     body
-        New comment text (plain text, converted to HTML).
+        New comment text. Mutually exclusive with --body-file.
+    body_file
+        Read comment text from a UTF-8 file, or - for stdin.
+    format
+        Input format: plain (legacy paragraph wrapping) or markdown (rendered HTML).
     project
         Project name/ID (required for name-based lookup).
     """
     from plane.models.work_items import UpdateWorkItemComment
+
+    comment_html = _prepare_comment_html(body, body_file, format)
 
     try:
         client = get_client()
@@ -227,7 +269,7 @@ async def update(
 
         item_id = item["id"]
 
-        update_data = UpdateWorkItemComment(comment_html=f"<p>{body}</p>")
+        update_data = UpdateWorkItemComment(comment_html=comment_html)
         comment = await run_sdk(
             client.work_items.comments.update,
             workspace, project_id, item_id, comment_id, update_data,

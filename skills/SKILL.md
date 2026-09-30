@@ -123,10 +123,16 @@ planecli doc create --title "Spec" --content "## Details..." -p "Project" --json
 # Comments
 planecli comment ls ABC-123 --json
 planecli comment create ABC-123 --body "Fixed in PR #456" --json
+planecli comment create ABC-123 --format markdown --body-file comment.md --json
+planecli comment update COMMENT_ID --issue ABC-123 --format markdown --body-file comment.md --json
 ```
 
 ## Gotchas
 
+- **Markdown comments need `--format markdown`.** Both `comment create` and `comment update`
+  render fenced code blocks, headings, lists, and tables. Use exactly one of `--body` or
+  `--body-file` (UTF-8; `-` for stdin). Raw HTML is escaped in Markdown mode. The default
+  format preserves legacy paragraph wrapping without interpreting Markdown.
 - **Work-item descriptions are HTML.** `wi create` / `wi update -d` store the value verbatim inside
   the Plane editor's HTML, so markdown renders literally (`##`, backticks). Pass `<h2>`, `<p>`,
   `<ul>`, `<code>`, `<pre><code>`. From a markdown source, convert first and pass

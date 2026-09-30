@@ -22,6 +22,7 @@ classifiers = [
 dependencies = [
     "cyclopts>=3.0",
     "rich>=13.0",
+    "markdown-it-py>=3.0",
     "rapidfuzz>=3.0",
     "plane-sdk",
     "cashews[diskcache]>=7.0",

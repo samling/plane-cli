@@ -254,12 +254,27 @@ planecli comment ls ABC-123
 # Add a comment
 planecli comment create ABC-123 --body "Fixed in PR #456"
 
-# Update a comment
+# Render Markdown from a UTF-8 file (including fenced code blocks)
+planecli comment create ABC-123 --format markdown --body-file comment.md
+
+# Read Markdown from stdin
+cat comment.md | planecli comment create ABC-123 --format markdown --body-file -
+
+# Update a formatted comment
+planecli comment update <comment-id> --issue ABC-123 --format markdown --body-file comment.md
+
+# Update a plain comment
 planecli comment update <comment-id> --issue ABC-123 --body "Updated comment"
 
 # Delete a comment
 planecli comment delete <comment-id> --issue ABC-123
 ```
+
+Both `create` and `update` accept exactly one of `--body` / `-b` or `--body-file`.
+Use `--format markdown` for headings, lists, links, emphasis, tables, inline code,
+and fenced code blocks with optional language tags. Raw HTML is escaped in Markdown mode.
+Without `--format markdown`, the existing paragraph-wrapping behavior is unchanged;
+Markdown is not interpreted.
 
 ### Users
 

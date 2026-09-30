@@ -284,10 +284,16 @@ Command group: `planecli comment` (alias: `comments`)
 
 ```
 planecli comment ls ISSUE [--project/-p PROJECT] [--limit/-l N]
-planecli comment create ISSUE --body "TEXT" [--project/-p PROJECT]
-planecli comment update COMMENT_ID --issue ISSUE --body "TEXT" [--project/-p PROJECT]
+planecli comment create ISSUE (--body TEXT | --body-file FILE) [--format plain|markdown] [--project/-p PROJECT]
+planecli comment update COMMENT_ID --issue ISSUE (--body TEXT | --body-file FILE) [--format plain|markdown] [--project/-p PROJECT]
 planecli comment delete COMMENT_ID --issue ISSUE [--project/-p PROJECT]
 ```
+
+`create` and `update` require exactly one of `--body` (alias `-b`) or `--body-file`.
+Files are UTF-8; `--body-file -` reads stdin. `--format markdown` renders CommonMark
+plus tables as HTML, including fenced code blocks with optional language tags.
+Raw HTML in Markdown is escaped. The default `--format plain` retains the legacy
+paragraph wrapping without interpreting Markdown.
 
 `--limit` (default 50) selects the **most recent** N comments, still rendered
 oldest → newest — not the first N chronologically. A limit of `0` or a negative
